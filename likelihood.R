@@ -79,7 +79,7 @@ GenAllDeps <- function(tars) {
 #			'deps': chr_vec of filenames, likely ending in '.csv'
 #			result: 'basename' is the filename sans extension
 GenLibrary <- function(deps) {
-	# Options to the csv reader: columns are named, types should be inferred, and 
+	# Options to the csv reader: columns are named, types should be inferred,
 	# empty cells should be represented as the empty string
   readr_opts <- list(col_names=TRUE, col_types=NULL, na="")
 
@@ -119,7 +119,8 @@ InjectFromLibrary <- function(tar, lib)
 # Injects all of the targets with their dependencies
 # list of targets, library -> list of targets
 # [todo] This could be made a little safer
-InjectAllTargets <- function(tars, lib) map(tars, InjectFromLibrary, lib)
+InjectAllTargets <- function(tars, lib) 
+	map(tars, InjectFromLibrary, lib)
 
 #########################################################
 ## Data: Cleaning
