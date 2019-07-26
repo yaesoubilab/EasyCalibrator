@@ -95,7 +95,7 @@ GenLibrary <- function(deps) {
   accumulator <- function(acc, fname) {
     acc[[namer(fname)]] <- tryCatch(loader(fname),
       error=function(c) {
-        message(c, "\n")
+        # message(c, "\n")
         stop("GenLibrary: Couldn't open file: ", fname)
       }
     )
