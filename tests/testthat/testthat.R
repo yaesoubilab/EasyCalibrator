@@ -1,13 +1,13 @@
+context("Tests")
+
 library(testthat)
 library(EasyCalibrator)
-
-context("Tests!")
 
 #########################################################
 ## Example data
 #########################################################
 
-valid_observations <- tibble(
+valid_observations <- tibble::tibble(
   years=seq(2002,2008),
   values=10*seq(1002,1008) # Made-up values
 )
