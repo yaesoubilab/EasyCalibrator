@@ -6,8 +6,8 @@ library(testthat)
 #########################################################
 
 valid_observations <- tibble(
-  years=seq(2002,2008),
-  values=10*seq(1002,1008) # Made-up values
+  year=seq(2002,2008),
+  value=10*seq(1002,1008) # Made-up values
 )
 
 # Example of a target with two time-series: 'tbLatent' is divided by
@@ -100,5 +100,57 @@ test_that('InjectFromLibrary basically works', {
 })
 
 #########################################################
-## Tests: Target dependency resolution 
+## Tests: Cleaning
 #########################################################
+
+test_that('Two identical variables pass SameVars', {
+	a <- tibble(lol=integer(), cat=integer())
+	b <- tibble(lol=integer(), cat=integer())
+
+	expect_true(SameVars(a,b))
+})
+
+test_that('Three identical tibbles pass SameVars', {
+	a <- tibble(lol=integer(), cat=integer())
+
+	expect_true(SameVars(a,a,a))
+})
+
+test_that('Two tibbles, one with a superset of vars, fails SameVars', {
+	a <- tibble(lol=integer())
+	b <- tibble(lol=integer(), cat=integer())
+
+	expect_false(SameVars(a,b))
+})
+
+test_that('Invalid model-pairs error', {
+	a <- tibble(period=integer(), trajectory=integer(), value=integer())
+	b <- tibble(period=integer(), value=integer())
+
+	target <- list(model=list(a, b))
+
+	expect_error(CleanModelData(target))
+})
+
+transformed_tars <- function() {
+	injected_tars <- InjectAllTargets(valid_targets,
+																		LibraryForTargets(valid_targets))
+	
+	cleaned_tars <- CleanInjectedTargets(injected_tars)
+
+	TransformAllTargets(cleaned_tars, 1990)
+}
+
+test_that('CleanModelData leaves no groups', {
+	expect_false(some(transformed_tars(), is_grouped_df))
+})
+
+# This test is NON-FUNCTIONAL and ERRORS!
+test_that('CleanModelData deals with 2-element model keys correctly', {
+	tars_2_models <- Filter(x=transformed_tars(),
+													f=function(x) length(x$model) == 2)
+	print(tars_2_models)
+	lmap(tars_2_models, ~expect_s3_class(.$model[[1]], 'tbl_df'))
+	lmap(tars_2_models, ~expect_s3_class(.$model[[2]], 'tbl_df'))
+})
+
