@@ -1,5 +1,7 @@
-source('likelihood.R')
 library(testthat)
+library(EasyCalibrator)
+
+context("Tests!")
 
 #########################################################
 ## Example data
