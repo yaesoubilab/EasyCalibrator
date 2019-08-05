@@ -216,6 +216,7 @@ CleanInjectedTargets <- purrr::partial(purrr::map, ...=, CleanModelData)
 # Mutates 'var name' in-place by adding 'number' to it
 OffsetVar <- function(tbl, var, by) {
   var <- rlang::enquo(var)
+  message(names(tbl))
   dplyr::mutate(tbl, !!var := !!var + by)
 }
 
