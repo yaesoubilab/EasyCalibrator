@@ -17,6 +17,8 @@ requireNamespace("rlang")
 requireNamespace("magrittr")
 requireNamespace("readr")
 
+#' @importFrom magrittr %>%
+
 #########################################################
 ## Target format validation
 #########################################################
@@ -94,7 +96,7 @@ GenAllDeps <- function(tars) {
 GenLibrary <- function(deps) {
   
   col_types <- readr::cols(period=readr::col_integer(),
-                           trajectory=readr::col_integer(),
+                           trajectory=readr::col_character(),
                            value=readr::col_double())
 
   # Options to the csv reader: columns are named, types are as according 
