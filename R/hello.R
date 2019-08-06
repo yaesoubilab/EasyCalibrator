@@ -92,9 +92,16 @@ GenAllDeps <- function(tars) {
 #			'deps': chr_vec of filenames, likely ending in '.csv'
 #			result: 'basename' is the filename sans extension
 GenLibrary <- function(deps) {
-  # Options to the csv reader: columns are named, types should be inferred, and
-  # empty cells should be represented as the empty string
-  readr_opts <- list(col_names=TRUE, col_types=NULL, na="")
+  
+  col_types <- readr::cols(period=readr::col_integer(),
+                           trajectory=readr::col_integer(),
+                           value=readr::col_double())
+
+  # Options to the csv reader: columns are named, types are as according 
+  # to spec, and empty cells should be represented as the empty string
+  readr_opts <- list(col_names=TRUE,
+                     col_types=col_types, 
+                     na="")
 
   # Partialize the 'read_csv' function to configure it
   loader <- purrr::partial(purrr::lift_dl(readr::read_csv),
@@ -166,7 +173,8 @@ SameVars <- function(...) {
 RemoveTrajectory <- function(tbl) dplyr::select(tbl, -trajectory)
 
 # tibble -> tibble
-RenameTime <- purrr::partial(dplyr::rename, year=period)
+# RenameTime <- purrr::partial(dplyr::rename, year=period)
+RenameTime <- function(tbl) dplyr::rename(tbl, year=period)
 
 # tibble -> tibble
 # Spread the AG column into agemin, agemax columns
@@ -214,13 +222,10 @@ CleanInjectedTargets <- purrr::partial(purrr::map, ...=, CleanModelData)
 
 # tibble, var name, number -> tibble
 # Mutates 'var name' in-place by adding 'number' to it
-OffsetVar <- function(tbl, var, by) {
-  var <- rlang::enquo(var)
-  dplyr::mutate(tbl, !!var := !!var + by)
-}
+OffsetVar <- function(tbl, var, by) dplyr::mutate_at(tbl, var, ~. + by)
 
 # tibble, var name, year
-OffsetYear <- purrr::partial(OffsetVar, var=year)
+OffsetYear <- purrr::partial(OffsetVar, var='year')
 
 # tibble -> int
 # Number of rows in tibble
@@ -262,13 +267,14 @@ JoinAndDivide <- function(tbl1, tbl2) {
 CoalesceAGs <- function(tbl, ag_pairs) tbl
 
 TransformCleanedModel <- function(obj, year.offset=0) {
-  model_transformers <- list(
-    purrr::partial(OffsetYear, by=year.offset)
-  )
+  # model_transformers <- list(
+  #   purrr::partial(OffsetYear, by=year.offset)
+  # )
 
-  model_transformers <- purrr::lift_dl(purrr::compose)(model_transformers)
+  # model_transformers <- purrr::lift_dl(purrr::compose)(model_transformers)
 
-  model_transformers(obj)
+  # model_transformers(obj)
+  OffsetYear(obj, by=year.offset)
 }
 
 TransformCleanedTarget <- function(tar, year.offset=0) {
@@ -283,8 +289,9 @@ TransformCleanedTarget <- function(tar, year.offset=0) {
   tar
 }
 
-TransformAllTargets <- function(tars, year.offset=0)
+TransformAllTargets <- function(tars, year.offset=0) 
   purrr::map(tars, TransformCleanedTarget, year.offset)
+
 
 #########################################################
 ## Data: Filter
@@ -402,86 +409,45 @@ CalibrateTargets <- function(targets) {
   pipeline(targets)
 }
 
+#########################################################
+## Real data: preprocessing functions
+#########################################################
+
+ReformatRawCalibData <- function(d) {
+  vars <- setdiff(names(d), 'year')
+
+  # Reformat each target into a tibble with a 'year' variable
+  # and a 'value' variable
+  tibbles <- purrr::map_at(d, vars, ~tibble::tibble(year=d$year, value=.))
+
+  # For each target, remove entries that are NA-valued
+  purrr::map(tibbles[vars], ~dplyr::filter(., !is.na(value)))
+}
 
 #########################################################
-## Example data
+## Real data
 #########################################################
 
-valid_observations <- tibble::tibble(
-  years=seq(2002,2008),
-  values=10*seq(1002,1008) # Made-up values
+calibrationData_raw <- tibble::tibble(
+  year = 2002:2008,
+  populationChildren = c(10427, 10531, 10637, 10743, 10850, 10959, 11068),
+  populationAdults =   c(25903, 26162, 26424, 26688, 26955, 27224, 27497),
+  notifiedTBChildren = c(82, 60, 66, 69, 73, 77, 69),
+  notifiedTBExperiencedAdults = c(105, 119, 130, 109, 130, 126, 137),
+  notifiedTBNaiveAdults = c(172, 234, 200, 224, 216, 233, 210),
+  prevalenceExperiencedAdults = 100*c(0.097, NA, NA, NA, NA, NA, NA),
+  prevalenceHIV = c(0.052, NA, NA, NA, NA, NA, NA),
+  prevalenceInfectiousNaiveAdults = 100*c(0.0051, NA, NA, NA, NA, NA, NA),
+  prevalenceInfectiousExperiencedAdults = 100*c(0.0299, NA, NA, NA, NA, NA, NA)
 )
 
-# Example of a target with two time-series: 'tbLatent' is divided by
-# 'populationSize' for each year in 'tbLatent' that is also a year
-# in 'populationSize'
-valid_target_1    <- list(type="TS",
-                          model=c("tbLatent", "populationSize"),
-                          observed=valid_observations)
+calibrationData <- ReformatRawCalibData(calibrationData_raw)
 
-# Example of a target with one time-series
-valid_target_2    <- list(type="TS",
-                          model=c("tbSusceptible"),
-                          observed=valid_observations)
+tar_prevalence_HIV <- list(type='TS',
+                           model=c('hivPositive', 'populationSize'),
+                           observed=calibrationData$prevalenceHIV)
 
-valid_targets     <- list(valid_target_1, valid_target_2)
+targets <- list(HIVPrevalence=tar_prevalence_HIV)
 
-# It's conceivable that two identical, or very-similar targets could be
-# included in the list of targets, so this is there to illustrate that
-# capability.
-valid_targets_dup <- list(valid_target_1, valid_target_1, valid_target_2)
-
-# Invalid because a 'PTS' (PyramidTimeSeries) can't be used with
-# 'valid_observations', which is a TimeSeries data
-invalid_target_1 <- list(type="PTS",
-                         model=c("mydata2"),
-                         observed=valid_observations)
-
-# Invalid because of the '.csv': there shouldn't be file extensions
-invalid_target_2 <- list(type="TS",
-                         model=c("mydata1", "mydata2.csv"),
-                         observed=valid_observations)
-
-# #########################################################
-# ## Real data: preprocessing functions
-# #########################################################
-#
-# ReformatRawCalibData <- function(d) {
-#   vars <- setdiff(names(d), 'year')
-#
-#   # Reformat each target into a tibble with a 'year' variable
-#   # and a 'value' variable
-#   tibbles <- purrr::map_at(d, vars, ~tibble::tibble(year=d$year, value=.))
-#
-#   # For each target, remove entries that are NA-valued
-#   purrr::map(tibbles[vars], ~dplyr::filter(., !is.na(value)))
-# }
-#
-# #########################################################
-# ## Real data
-# #########################################################
-#
-# calibrationData_raw <- tibble::tibble(
-#   year = 2002:2008,
-#   populationChildren = c(10427, 10531, 10637, 10743, 10850, 10959, 11068),
-#   populationAdults =   c(25903, 26162, 26424, 26688, 26955, 27224, 27497),
-#   notifiedTBChildren = c(82, 60, 66, 69, 73, 77, 69),
-#   notifiedTBExperiencedAdults = c(105, 119, 130, 109, 130, 126, 137),
-#   notifiedTBNaiveAdults = c(172, 234, 200, 224, 216, 233, 210),
-#   prevalenceExperiencedAdults = 100*c(0.097, NA, NA, NA, NA, NA, NA),
-#   prevalenceHIV = c(0.052, NA, NA, NA, NA, NA, NA),
-#   prevalenceInfectiousNaiveAdults = 100*c(0.0051, NA, NA, NA, NA, NA, NA),
-#   prevalenceInfectiousExperiencedAdults = 100*c(0.0299, NA, NA, NA, NA, NA, NA)
-# )
-#
-# calibrationData <- ReformatRawCalibData(calibrationData_raw)
-#
-# tar_prevalence_HIV <- list(type='TS',
-#                            model=c('hivPositive', 'populationSize'),
-#                            observed=calibrationData$prevalenceHIV)
-#
-# targets <- list(HIVPrevalence=tar_prevalence_HIV)
-#
-# fakePopSize <- 36500
-
+fakePopSize <- 36500
 
