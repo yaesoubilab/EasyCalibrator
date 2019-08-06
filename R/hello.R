@@ -92,9 +92,16 @@ GenAllDeps <- function(tars) {
 #			'deps': chr_vec of filenames, likely ending in '.csv'
 #			result: 'basename' is the filename sans extension
 GenLibrary <- function(deps) {
-  # Options to the csv reader: columns are named, types should be inferred, and
-  # empty cells should be represented as the empty string
-  readr_opts <- list(col_names=TRUE, col_types=NULL, na="")
+  
+  col_types <- readr::cols(period=readr::col_integer(),
+                           trajectory=readr::col_integer(),
+                           value=readr::col_double())
+
+  # Options to the csv reader: columns are named, types are as according 
+  # to spec, and empty cells should be represented as the empty string
+  readr_opts <- list(col_names=TRUE,
+                     col_types=col_types, 
+                     na="")
 
   # Partialize the 'read_csv' function to configure it
   loader <- purrr::partial(purrr::lift_dl(readr::read_csv),
@@ -166,7 +173,8 @@ SameVars <- function(...) {
 RemoveTrajectory <- function(tbl) dplyr::select(tbl, -trajectory)
 
 # tibble -> tibble
-RenameTime <- purrr::partial(dplyr::rename, year=period)
+# RenameTime <- purrr::partial(dplyr::rename, year=period)
+RenameTime <- function(tbl) dplyr::rename(tbl, year=period)
 
 # tibble -> tibble
 # Spread the AG column into agemin, agemax columns
@@ -214,14 +222,10 @@ CleanInjectedTargets <- purrr::partial(purrr::map, ...=, CleanModelData)
 
 # tibble, var name, number -> tibble
 # Mutates 'var name' in-place by adding 'number' to it
-OffsetVar <- function(tbl, var, by) {
-  var <- rlang::enquo(var)
-  message(names(tbl))
-  dplyr::mutate(tbl, !!var := !!var + by)
-}
+OffsetVar <- function(tbl, var, by) dplyr::mutate_at(tbl, var, ~. + by)
 
 # tibble, var name, year
-OffsetYear <- purrr::partial(OffsetVar, var=year)
+OffsetYear <- purrr::partial(OffsetVar, var='year')
 
 # tibble -> int
 # Number of rows in tibble
@@ -263,13 +267,14 @@ JoinAndDivide <- function(tbl1, tbl2) {
 CoalesceAGs <- function(tbl, ag_pairs) tbl
 
 TransformCleanedModel <- function(obj, year.offset=0) {
-  model_transformers <- list(
-    purrr::partial(OffsetYear, by=year.offset)
-  )
+  # model_transformers <- list(
+  #   purrr::partial(OffsetYear, by=year.offset)
+  # )
 
-  model_transformers <- purrr::lift_dl(purrr::compose)(model_transformers)
+  # model_transformers <- purrr::lift_dl(purrr::compose)(model_transformers)
 
-  model_transformers(obj)
+  # model_transformers(obj)
+  OffsetYear(obj, by=year.offset)
 }
 
 TransformCleanedTarget <- function(tar, year.offset=0) {
@@ -284,8 +289,9 @@ TransformCleanedTarget <- function(tar, year.offset=0) {
   tar
 }
 
-TransformAllTargets <- function(tars, year.offset=0)
+TransformAllTargets <- function(tars, year.offset=0) 
   purrr::map(tars, TransformCleanedTarget, year.offset)
+
 
 #########################################################
 ## Data: Filter
@@ -419,45 +425,6 @@ TryIt <- function() {
        stepped  = dbg)
 }
 
-
-#########################################################
-## Example data
-#########################################################
-
-valid_observations <- tibble::tibble(
-  years=seq(2002,2008),
-  values=10*seq(1002,1008) # Made-up values
-)
-
-# Example of a target with two time-series: 'tbLatent' is divided by
-# 'populationSize' for each year in 'tbLatent' that is also a year
-# in 'populationSize'
-valid_target_1    <- list(type="TS",
-                          model=c("tbLatent", "populationSize"),
-                          observed=valid_observations)
-
-# Example of a target with one time-series
-valid_target_2    <- list(type="TS",
-                          model=c("tbSusceptible"),
-                          observed=valid_observations)
-
-valid_targets     <- list(valid_target_1, valid_target_2)
-
-# It's conceivable that two identical, or very-similar targets could be
-# included in the list of targets, so this is there to illustrate that
-# capability.
-valid_targets_dup <- list(valid_target_1, valid_target_1, valid_target_2)
-
-# Invalid because a 'PTS' (PyramidTimeSeries) can't be used with
-# 'valid_observations', which is a TimeSeries data
-invalid_target_1 <- list(type="PTS",
-                         model=c("mydata2"),
-                         observed=valid_observations)
-
-# Invalid because of the '.csv': there shouldn't be file extensions
-invalid_target_2 <- list(type="TS",
-                         model=c("mydata1", "mydata2.csv"),
-                         observed=valid_observations)
 
 #########################################################
 ## Real data: preprocessing functions
