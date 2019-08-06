@@ -38,22 +38,16 @@ test_that('Invalid model-pairs error', {
             expect_error(CleanModelData(target))
 })
 
-test_that('CleanModelData leaves no groups', {
-
+transform_tars <- function() {
   injected_tars <- InjectAllTargets(valid_targets,
                                     LibraryForTargets(valid_targets))
-
   cleaned_tars <- CleanInjectedTargets(injected_tars)
   transformed <- TransformAllTargets(cleaned_tars, 1990)
 
-  expect_false(purrr::some(transformed, dplyr::is_grouped_df))
+  transformed
+}
+
+test_that('CleanModelData leaves no groups', {
+  expect_false(purrr::some(transform_tars(), dplyr::is_grouped_df))
 })
 
-# This test is NON-FUNCTIONAL and ERRORS!
-# test_that('CleanModelData deals with 2-element model keys correctly', {
-#   tars_2_models <- Filter(x=transformed_tars(),
-#                           f=function(x) length(x$model) == 2)
-#   print(tars_2_models)
-#   lmap(tars_2_models, ~expect_s3_class(.$model[[1]], 'tbl_df'))
-#   lmap(tars_2_models, ~expect_s3_class(.$model[[2]], 'tbl_df'))
-# })

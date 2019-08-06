@@ -15,7 +15,8 @@ Imports:
     purrr,
     stringr,
     magrittr,
-    rlang
+    rlang,
+    assertthat
 Exports:
     CalibrateTargets
 LazyData: true

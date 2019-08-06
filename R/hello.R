@@ -8,14 +8,15 @@
 #   Check Package:             'Cmd + Shift + E'
 #   Test Package:              'Cmd + Shift + T'
 
-requireNamespace("readr")
-requireNamespace("tibble")
-requireNamespace("purrr")
+requireNamespace("assertthat")
 requireNamespace("dplyr")
-requireNamespace("stringr")
-requireNamespace("rlang")
 requireNamespace("magrittr")
+requireNamespace("purrr")
 requireNamespace("readr")
+requireNamespace("readr")
+requireNamespace("rlang")
+requireNamespace("stringr")
+requireNamespace("tibble")
 
 #' @importFrom magrittr %>%
 
