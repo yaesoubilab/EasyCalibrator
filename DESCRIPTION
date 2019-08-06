@@ -16,6 +16,8 @@ Imports:
     stringr,
     magrittr,
     rlang
+Exports:
+    CalibrateTargets
 LazyData: true
 Suggests: 
     testthat

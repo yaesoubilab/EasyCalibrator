@@ -98,7 +98,7 @@ GenLibrary <- function(deps) {
 
   # Partialize the 'read_csv' function to configure it
   loader <- purrr::partial(purrr::lift_dl(readr::read_csv),
-			   readr_opts)
+                           readr_opts)
 
   # Get rid of the file extension
   # KNOWN BUG: Will fail when fname has two periods, i.e. 'fname.xls.csv'
@@ -318,9 +318,9 @@ FilterTargets <- purrr::partial(purrr::map, ...=, FilterTarget)
 JoinModelObserved <- function(mod, obs)
   dplyr::inner_join(mod, obs, IDGroupingVars(mod, obs), suffix=c(".mod", ".obs")) %>%
   dplyr::mutate(model     = value.mod,
-         observed  = value.obs,
-         value.mod = NULL,
-         value.obs = NULL)
+                observed  = value.obs,
+                value.mod = NULL,
+                value.obs = NULL)
 
 # obs [tbl] and [joined] -> bool
 # Check to make sure that every observed value was joined to
@@ -352,12 +352,12 @@ Likelihood <- function(size) function(m,o) DistGenOnSize(size)(x=o, prob=m)
 # Currying function
 Likelihoods <- function(model, obs, size) purrr::map2_dbl(model, obs, Likelihood(size))
 
-# 
+#
 CalculateLikelihoods <- function(tbl_data, size)
   dplyr::mutate(tbl_data,
-		likelihood=Likelihoods(model, 
-				       round(size*observed),
-				       size))
+                likelihood=Likelihoods(model,
+                                       round(size*observed),
+                                       size))
 
 LikelihoodOnTarget <- function(tar, size=36500)
   list(type=tar$type,
@@ -374,10 +374,11 @@ SumTarget <- function(tar)
 
 SumTargets <-
   purrr::compose(sum,
-          purrr::partial(purrr::map_dbl, ...=, ~sum(dplyr::pull(.$likelihoods, log.sum))),
-          purrr::partial(purrr::map, ...=, SumTarget))
+                 purrr::partial(purrr::map_dbl, ...=, ~sum(dplyr::pull(.$likelihoods, log.sum))),
+                 purrr::partial(purrr::map, ...=, SumTarget))
 
-TryIt <- function() {
+#' @export
+CalibrateTargets <- function(targets) {
 
   start_year <- 1990
   pop_size   <- 36500
@@ -390,32 +391,15 @@ TryIt <- function() {
   Transformer <- purrr::partial(TransformAllTargets, year.offset=start_year)
   Injector <- purrr::partial(InjectAllTargets, lib=lib)
 
-  injected    <- try(Injector(targets))
-  cleaned     <- try(CleanInjectedTargets(injected))
-  transformed <- try(Transformer(cleaned))
-  filtered    <- try(FilterTargets(transformed))
-  joined      <- try(JoinAllTargets(filtered))
-  calculated  <- try(LikelihoodOnTargets(joined))
-  summed      <- try(SumTargets(calculated))
-
-  dbg <- list(injected=injected,
-              cleaned=cleaned,
-              transformed=transformed,
-              filtered=filtered,
-              joined=joined,
-              calculated=calculated,
-              summed=summed)
-
   pipeline <- purrr::compose(SumTargets,
-                      purrr::partial(LikelihoodOnTargets, size=pop_size),
-                      JoinAllTargets,
-                      FilterTargets,
-                      Transformer,
-                      CleanInjectedTargets,
-                      Injector)
+                             purrr::partial(LikelihoodOnTargets, size=pop_size),
+                             JoinAllTargets,
+                             FilterTargets,
+                             Transformer,
+                             CleanInjectedTargets,
+                             Injector)
 
-  list(pipeline = pipeline(targets),
-       stepped  = dbg)
+  pipeline(targets)
 }
 
 
@@ -458,46 +442,46 @@ invalid_target_2 <- list(type="TS",
                          model=c("mydata1", "mydata2.csv"),
                          observed=valid_observations)
 
-#########################################################
-## Real data: preprocessing functions
-#########################################################
-
-ReformatRawCalibData <- function(d) {
-  vars <- setdiff(names(d), 'year')
-
-  # Reformat each target into a tibble with a 'year' variable
-  # and a 'value' variable
-  tibbles <- purrr::map_at(d, vars, ~tibble::tibble(year=d$year, value=.))
-
-  # For each target, remove entries that are NA-valued
-  purrr::map(tibbles[vars], ~dplyr::filter(., !is.na(value)))
-}
-
-#########################################################
-## Real data
-#########################################################
-
-calibrationData_raw <- tibble::tibble(
-  year = 2002:2008,
-  populationChildren = c(10427, 10531, 10637, 10743, 10850, 10959, 11068),
-  populationAdults =   c(25903, 26162, 26424, 26688, 26955, 27224, 27497),
-  notifiedTBChildren = c(82, 60, 66, 69, 73, 77, 69),
-  notifiedTBExperiencedAdults = c(105, 119, 130, 109, 130, 126, 137),
-  notifiedTBNaiveAdults = c(172, 234, 200, 224, 216, 233, 210),
-  prevalenceExperiencedAdults = 100*c(0.097, NA, NA, NA, NA, NA, NA),
-  prevalenceHIV = c(0.052, NA, NA, NA, NA, NA, NA),
-  prevalenceInfectiousNaiveAdults = 100*c(0.0051, NA, NA, NA, NA, NA, NA),
-  prevalenceInfectiousExperiencedAdults = 100*c(0.0299, NA, NA, NA, NA, NA, NA)
-)
-
-calibrationData <- ReformatRawCalibData(calibrationData_raw)
-
-tar_prevalence_HIV <- list(type='TS',
-                           model=c('hivPositive', 'populationSize'),
-                           observed=calibrationData$prevalenceHIV)
-
-targets <- list(HIVPrevalence=tar_prevalence_HIV)
-
-fakePopSize <- 36500
+# #########################################################
+# ## Real data: preprocessing functions
+# #########################################################
+#
+# ReformatRawCalibData <- function(d) {
+#   vars <- setdiff(names(d), 'year')
+#
+#   # Reformat each target into a tibble with a 'year' variable
+#   # and a 'value' variable
+#   tibbles <- purrr::map_at(d, vars, ~tibble::tibble(year=d$year, value=.))
+#
+#   # For each target, remove entries that are NA-valued
+#   purrr::map(tibbles[vars], ~dplyr::filter(., !is.na(value)))
+# }
+#
+# #########################################################
+# ## Real data
+# #########################################################
+#
+# calibrationData_raw <- tibble::tibble(
+#   year = 2002:2008,
+#   populationChildren = c(10427, 10531, 10637, 10743, 10850, 10959, 11068),
+#   populationAdults =   c(25903, 26162, 26424, 26688, 26955, 27224, 27497),
+#   notifiedTBChildren = c(82, 60, 66, 69, 73, 77, 69),
+#   notifiedTBExperiencedAdults = c(105, 119, 130, 109, 130, 126, 137),
+#   notifiedTBNaiveAdults = c(172, 234, 200, 224, 216, 233, 210),
+#   prevalenceExperiencedAdults = 100*c(0.097, NA, NA, NA, NA, NA, NA),
+#   prevalenceHIV = c(0.052, NA, NA, NA, NA, NA, NA),
+#   prevalenceInfectiousNaiveAdults = 100*c(0.0051, NA, NA, NA, NA, NA, NA),
+#   prevalenceInfectiousExperiencedAdults = 100*c(0.0299, NA, NA, NA, NA, NA, NA)
+# )
+#
+# calibrationData <- ReformatRawCalibData(calibrationData_raw)
+#
+# tar_prevalence_HIV <- list(type='TS',
+#                            model=c('hivPositive', 'populationSize'),
+#                            observed=calibrationData$prevalenceHIV)
+#
+# targets <- list(HIVPrevalence=tar_prevalence_HIV)
+#
+# fakePopSize <- 36500
 
 
