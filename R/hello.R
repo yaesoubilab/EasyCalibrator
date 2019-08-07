@@ -8,22 +8,25 @@
 #   Check Package:             'Cmd + Shift + E'
 #   Test Package:              'Cmd + Shift + T'
 
-requireNamespace("readr")
-requireNamespace("tibble")
-requireNamespace("purrr")
+requireNamespace("assertthat")
 requireNamespace("dplyr")
-requireNamespace("stringr")
-requireNamespace("rlang")
 requireNamespace("magrittr")
+requireNamespace("purrr")
 requireNamespace("readr")
+requireNamespace("readr")
+requireNamespace("rlang")
+requireNamespace("stringr")
+requireNamespace("tibble")
 
 #' @importFrom magrittr %>%
+#' @importFrom assertthat assert_that
 
 #########################################################
 ## Target format validation
 #########################################################
 
-# Takes a 'target' object and determines that it has the following properties:
+# Takes a 'target' object and determines that it has the following 
+# properties:
 #	- has keys 'type', 'model', 'observed'
 # - where 'type' == 'TS' (TimeSeries)
 # - where 'model' is a chr_vec of length 1,2
@@ -224,14 +227,20 @@ CleanInjectedTargets <- purrr::partial(purrr::map, ...=, CleanModelData)
 
 # tibble, var name, number -> tibble
 # Mutates 'var name' in-place by adding 'number' to it
-OffsetVar <- function(tbl, var, by) dplyr::mutate_at(tbl, var, ~. + by)
+OffsetVar <- function(tbl, var, by) {
+  assert_that(all(var %in% names(tbl)))
+  assert_that(all.equal(length(var), 1))
+  assert_that(is.numeric(by))
 
-# tibble, var name, year
+  dplyr::mutate_at(tbl, var, ~. + by)
+}
+
+# tibble, by[integer] -> tibble with 'year' column modified
 OffsetYear <- purrr::partial(OffsetVar, var='year')
 
 # tibble -> int
 # Number of rows in tibble
-NRows <- function(tbl) dplyr::count(tbl) %>% dplyr::pull(n)
+NRows <- nrow
 
 # tbl_l, tbl_r, tbl_joined -> bool
 # Decides whether or not the join went well
@@ -253,8 +262,7 @@ JoinAndDivide <- function(tbl1, tbl2) {
   joined <- dplyr::left_join(tbl1, tbl2, joining_vars)
 
   if( !JoinWentWell(tbl1, tbl2, joined) ) {
-    print("Join failed!")
-    return()
+    stop("Join failed!")
   }
 
   divide <- purrr::partial(dplyr::mutate, value = value.x/value.y)
@@ -306,9 +314,11 @@ Sym <- rlang::sym
 
 GenInPred <- function(vec, var_name) rlang::quo(!!Sym(var_name) %in% vec)
 
-GenTblPred <- function(tbl, var_name) GenInPred(dplyr::pull(tbl, var_name), var_name)
+GenTblPred <- function(tbl, var_name)
+  GenInPred(dplyr::pull(tbl, var_name), var_name)
 
-GenTblPreds <- function(tbl, var_names) purrr::map(var_names, ~GenTblPred(tbl, .))
+GenTblPreds <- function(tbl, var_names)
+  purrr::map(var_names, ~GenTblPred(tbl, .))
 
 FilterModel <- function(model, observed)
   dplyr::filter(model, !!! GenTblPreds(observed, FilterOn(observed)))
@@ -325,7 +335,10 @@ FilterTargets <- purrr::partial(purrr::map, ...=, FilterTarget)
 # mod, obs -> tbl[model, observed]
 # Joins model data to observed data using the grouping vars
 JoinModelObserved <- function(mod, obs)
-  dplyr::inner_join(mod, obs, IDGroupingVars(mod, obs), suffix=c(".mod", ".obs")) %>%
+  dplyr::inner_join(mod,
+                    obs,
+                    IDGroupingVars(mod, obs),
+                    suffix=c(".mod", ".obs")) %>%
   dplyr::mutate(model     = value.mod,
                 observed  = value.obs,
                 value.mod = NULL,
@@ -334,7 +347,8 @@ JoinModelObserved <- function(mod, obs)
 # obs [tbl] and [joined] -> bool
 # Check to make sure that every observed value was joined to
 # a model value
-CheckJoin <- function(obs, joined) NRows(joined) == NRows(obs)
+CheckJoin <- function(obs, joined) 
+  all.equal(NRows(joined), NRows(obs))
 
 # tar -> list[type=string, data[ tbl[model,observed] ]]
 # Take a target which is ready for its join, do the join, reorganize
@@ -356,7 +370,17 @@ JoinAllTargets <- purrr::partial(purrr::map, ...=, JoinTarget)
 DistGenOnSize <- function(size) purrr::partial(stats::dbinom, size=size, log=TRUE)
 
 # Currying function
-Likelihood <- function(size) function(m,o) DistGenOnSize(size)(x=o, prob=m)
+Likelihood <- function(size) {
+  assert_that(length(size) == 1)
+  assert_that(is.integer(size))
+  assert_that(size > 1)
+  
+  function(m,o) { 
+    assert_that(all(is.double(m)))
+
+    DistGenOnSize(size)(x=o, prob=m)
+  }
+}
 
 # Currying function
 Likelihoods <- function(model, obs, size) purrr::map2_dbl(model, obs, Likelihood(size))
@@ -368,7 +392,7 @@ CalculateLikelihoods <- function(tbl_data, size)
                                        round(size*observed),
                                        size))
 
-LikelihoodOnTarget <- function(tar, size=36500)
+LikelihoodOnTarget <- function(tar, size=as.integer(36500))
   list(type=tar$type,
        likelihoods=CalculateLikelihoods(tar$data, size))
 
@@ -390,7 +414,7 @@ SumTargets <-
 CalibrateTargets <- function(targets) {
 
   start_year <- 1990
-  pop_size   <- 36500
+  pop_size   <- as.integer(36500)
 
   if (!ValidateTargets(targets))
     stop("TryIt: One or more targets failed to validate")
