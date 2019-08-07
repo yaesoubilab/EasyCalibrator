@@ -9,14 +9,14 @@ Description: More about what it does (maybe more than one line)
 License: CC0
 Encoding: UTF-8
 Imports:
+    assertthat,
     dplyr,
-    readr,
-    tibble,
-    purrr,
-    stringr,
     magrittr,
+    purrr,
+    readr,
     rlang,
-    assertthat
+    stringr,
+    tibble
 Exports:
     CalibrateTargets
 LazyData: true
