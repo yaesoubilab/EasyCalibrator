@@ -1,20 +1,38 @@
-library(readr)
-library(tibble)
-library(purrr)
-library(dplyr)
-library(stringr)
+# You can learn more about package authoring with RStudio at:
+#
+#   http://r-pkgs.had.co.nz/
+#
+# Some useful keyboard shortcuts for package authoring:
+#
+#   Build and Reload Package:  'Cmd + Shift + B'
+#   Check Package:             'Cmd + Shift + E'
+#   Test Package:              'Cmd + Shift + T'
+
+requireNamespace("assertthat")
+requireNamespace("dplyr")
+requireNamespace("magrittr")
+requireNamespace("purrr")
+requireNamespace("readr")
+requireNamespace("readr")
+requireNamespace("rlang")
+requireNamespace("stringr")
+requireNamespace("tibble")
+
+#' @importFrom magrittr %>%
+#' @importFrom assertthat assert_that
 
 #########################################################
 ## Target format validation
 #########################################################
 
-# Takes a 'target' object and determines that it has the following properties:
+# Takes a 'target' object and determines that it has the following 
+# properties:
 #	- has keys 'type', 'model', 'observed'
 # - where 'type' == 'TS' (TimeSeries)
 # - where 'model' is a chr_vec of length 1,2
 # - where none of the elements of 'model' end in '.csv'
 #
-# IsTarget_impl: tar -> logical_vec 
+# IsTarget_impl: tar -> logical_vec
 IsTarget_impl <- function(tar) {
   target_keys <- c("type", "model", "observed")
   possible_types <- c('TS')
@@ -27,12 +45,12 @@ IsTarget_impl <- function(tar) {
   # Is the 'type' key correct?
   TYPE_CORRECT <- any(tar$type %in% possible_types)
 
-  MODEL_CORRECT <- all(typeof(tar$model) == "character", 
-             length(tar$model) %in% seq(1,2))
+  MODEL_CORRECT <- all(typeof(tar$model) == "character",
+                       length(tar$model) %in% seq(1,2))
 
   # Do any of the filenames include an extension?
-  filename_valid <- function(s) !str_detect(s, '\\.csv$')
-  FNAMES_CORRECT <- every(filenames, filename_valid)
+  filename_valid <- function(s) !stringr::str_detect(s, '\\.csv$')
+  FNAMES_CORRECT <- purrr::every(filenames, filename_valid)
 
   c(HAS_NAMES, TYPE_CORRECT, MODEL_CORRECT, FNAMES_CORRECT)
 }
@@ -42,13 +60,13 @@ IsTarget_impl <- function(tar) {
 # and 'all'
 #
 # IsTarget: target -> bool
-IsTarget <- compose(all, IsTarget_impl)
+IsTarget <- purrr::compose(all, IsTarget_impl)
 
 
 # ValidateTargets: list of targets -> bool
 #
 # Validates a list of targets using 'IsTarget'
-ValidateTargets <- function(targets) all(map_lgl(targets, IsTarget))
+ValidateTargets <- function(targets) all(purrr::map_lgl(targets, IsTarget))
 
 #########################################################
 ## Target dependency resolution
@@ -70,8 +88,8 @@ GenTargetDeps <- function(tar) paste0(tar$model, '.csv')
 # List all the unique .csv files that need to be loaded for a collection
 # of targets
 GenAllDeps <- function(tars) {
-  mapper <- partial(map, ...=, GenTargetDeps)
-  compose(unique, as.character, flatten, mapper)(tars)
+  mapper <- purrr::partial(purrr::map, ...=, GenTargetDeps)
+  purrr::compose(unique, as.character, purrr::flatten, mapper)(tars)
 }
 
 # GenLibrary: chr_vec of unique files -> list of [basename, tibble]
@@ -79,48 +97,55 @@ GenAllDeps <- function(tars) {
 #			'deps': chr_vec of filenames, likely ending in '.csv'
 #			result: 'basename' is the filename sans extension
 GenLibrary <- function(deps) {
-	# Options to the csv reader: columns are named, types should be inferred,
-	# empty cells should be represented as the empty string
-  readr_opts <- list(col_names=TRUE, col_types=NULL, na="")
-
-	# Partialize the 'read_csv' function to configure it
-  loader <- partial(lift_dl(read_csv), readr_opts)
-
-	# Get rid of the file extension
-	# KNOWN BUG: Will fail when fname has two periods, i.e. 'fname.xls.csv'
-  namer <- partial(str_extract, pattern='^\\w+')
   
-	# Attempt to load each dependency into a list, keyed on 'basename'
-	# Catch errors gracefully
+  col_types <- readr::cols(period=readr::col_integer(),
+                           trajectory=readr::col_character(),
+                           value=readr::col_double())
+
+  # Options to the csv reader: columns are named, types are as according 
+  # to spec, and empty cells should be represented as the empty string
+  readr_opts <- list(col_names=TRUE,
+                     col_types=col_types, 
+                     na="")
+
+  # Partialize the 'read_csv' function to configure it
+  loader <- purrr::partial(purrr::lift_dl(readr::read_csv),
+                           readr_opts)
+
+  # Get rid of the file extension
+  # KNOWN BUG: Will fail when fname has two periods, i.e. 'fname.xls.csv'
+  namer <- purrr::partial(stringr::str_extract, pattern='^\\w+')
+
+  # Attempt to load each dependency into a list, keyed on 'basename'
+  # Catch errors gracefully
   accumulator <- function(acc, fname) {
     acc[[namer(fname)]] <- tryCatch(loader(fname),
-      error=function(c) {
-        # message(c, "\n")
-        stop("GenLibrary: Couldn't open file: ", fname)
-      }
+                                    error=function(c) {
+                                      message(c, "\n")
+                                      stop("GenLibrary: Couldn't open file: ", fname)
+                                    }
     )
     acc
   }
 
-	# Use the accumulator to reduce the dependency list
-  reduce(deps, accumulator, .init=list())
+  # Use the accumulator to reduce the dependency list
+  purrr::reduce(deps, accumulator, .init=list())
 }
 
 # list of targets -> library
 # Takes a list of dependencies and produces a library
-LibraryForTargets <- compose(GenLibrary, GenAllDeps)
+LibraryForTargets <- purrr::compose(GenLibrary, GenAllDeps)
 
 # target, library -> target
 # Performs dependency injection on the targets, replacing each instance of a
 # referenced file with its representation as a tibble
 InjectFromLibrary <- function(tar, lib)
-  update_list(tar, model=quo(map(model, ~lib[[.]]) ))
+  purrr::update_list(tar, model=rlang::quo(purrr::map(model, ~lib[[.]]) ))
 
 # Injects all of the targets with their dependencies
 # list of targets, library -> list of targets
 # [todo] This could be made a little safer
-InjectAllTargets <- function(tars, lib) 
-	map(tars, InjectFromLibrary, lib)
+InjectAllTargets <- function(tars, lib) purrr::map(tars, InjectFromLibrary, lib)
 
 #########################################################
 ## Data: Cleaning
@@ -142,18 +167,19 @@ InjectAllTargets <- function(tars, lib)
 # Do all the tibbles have the same set of variables?
 SameVars <- function(...) {
   tibbles <- list(...)
-  name_lists <- map(tibbles, names)
-  head <- first(name_lists)
+  name_lists <- purrr::map(tibbles, names)
+  head <- dplyr::first(name_lists)
 
-  reduce(map(name_lists, ~setequal(head, .)), all)
+  purrr::reduce(purrr::map(name_lists, ~setequal(head, .)), all)
 }
 
 # tibble -> tibble
 # Get rid of any 'trajectory' variable
-RemoveTrajectory <- function(tbl) select(tbl, -trajectory)
+RemoveTrajectory <- function(tbl) dplyr::select(tbl, -trajectory)
 
 # tibble -> tibble
-RenameTime <- partial(rename, year=period)
+# RenameTime <- purrr::partial(dplyr::rename, year=period)
+RenameTime <- function(tbl) dplyr::rename(tbl, year=period)
 
 # tibble -> tibble
 # Spread the AG column into agemin, agemax columns
@@ -171,54 +197,57 @@ IDGroupingVars <- function(t1, t2) setdiff(SharedVars(t1, t2), "value")
 # tibble, tibble -> tibble
 # Group t1, by shared (between t1, t2), non-'value' variables, then sum
 GroupAndSummarize <- function(t1, t2)
-  IDGroupingVars(t1, t2) %>% 
-  group_by_at(t1, .) %>% 
-  summarize(value = sum(value))
+  IDGroupingVars(t1, t2) %>%
+  dplyr::group_by_at(t1, .) %>%
+  dplyr::summarize(value = sum(value))
 
 CleanModelData <- function(tar_injected) {
-  if (!lift_dl(SameVars)(tar_injected$model))
+  if (!purrr::lift_dl(SameVars)(tar_injected$model))
     stop("Model datas have different variable-sets")
 
-  Summarizer <- partial(GroupAndSummarize, ...=, t2=tar_injected$observed)
+  Summarizer <- purrr::partial(GroupAndSummarize, ...=, t2=tar_injected$observed)
 
-  pipeline <- compose(Summarizer, SpreadAG, RenameTime, RemoveTrajectory)
+  pipeline <- purrr::compose(Summarizer, SpreadAG, RenameTime, RemoveTrajectory)
 
-  new_model <- map(tar_injected$model, pipeline)
+  new_model <- purrr::map(tar_injected$model, pipeline)
   tar_injected$model <- new_model
   tar_injected
 }
 
 # CleanInjectedTargets: targets -> cleaned targets
-CleanInjectedTargets <- partial(map, ...=, CleanModelData)
+CleanInjectedTargets <- purrr::partial(purrr::map, ...=, CleanModelData)
 
 #########################################################
 ## Data: Transformations
 ##
 ## This section applies transformations to the 'model'
 ## data in attempting to join it to the observational
-## data. 
+## data.
 #########################################################
 
 # tibble, var name, number -> tibble
 # Mutates 'var name' in-place by adding 'number' to it
 OffsetVar <- function(tbl, var, by) {
-  var <- enquo(var)
-  mutate(tbl, !!var := !!var + by)
+  assert_that(all(var %in% names(tbl)))
+  assert_that(all.equal(length(var), 1))
+  assert_that(is.numeric(by))
+
+  dplyr::mutate_at(tbl, var, ~. + by)
 }
 
-# tibble, var name, year
-OffsetYear <- partial(OffsetVar, var=year)
+# tibble, by[integer] -> tibble with 'year' column modified
+OffsetYear <- purrr::partial(OffsetVar, var='year')
 
 # tibble -> int
 # Number of rows in tibble
-NRows <- function(tbl) count(tbl) %>% pull(n)
+NRows <- nrow
 
 # tbl_l, tbl_r, tbl_joined -> bool
 # Decides whether or not the join went well
 JoinWentWell <- function(l, r, joined) {
   LengthGood <- `==`(NRows(l), NRows(joined))
-  NoNAExceptLast <- pull(joined, value.y)[1:length(joined$value.y)-1] %>%
-    every(negate(is.na))
+  NoNAExceptLast <- dplyr::pull(joined, value.y)[1:length(joined$value.y)-1] %>%
+    purrr::every(purrr::negate(is.na))
 
   all(LengthGood, NoNAExceptLast)
 }
@@ -229,18 +258,17 @@ JoinWentWell <- function(l, r, joined) {
 # with all other columns present in the two tibbles
 JoinAndDivide <- function(tbl1, tbl2) {
   joining_vars <- IDGroupingVars(tbl1, tbl2)
-  
-  joined <- left_join(tbl1, tbl2, joining_vars)
+
+  joined <- dplyr::left_join(tbl1, tbl2, joining_vars)
 
   if( !JoinWentWell(tbl1, tbl2, joined) ) {
-    print("Join failed!")
-    return()
+    stop("Join failed!")
   }
 
-  divide <- partial(mutate, value = value.x/value.y)
-  consolidate <- partial(select, ...=, -value.x, -value.y)
+  divide <- purrr::partial(dplyr::mutate, value = value.x/value.y)
+  consolidate <- purrr::partial(dplyr::select, ...=, -value.x, -value.y)
 
-  compose(consolidate, divide)(joined)
+  purrr::compose(consolidate, divide)(joined)
 }
 
 # tibble, list of AGPairs -> tibble
@@ -249,17 +277,18 @@ JoinAndDivide <- function(tbl1, tbl2) {
 CoalesceAGs <- function(tbl, ag_pairs) tbl
 
 TransformCleanedModel <- function(obj, year.offset=0) {
-  model_transformers <- list(
-    partial(OffsetYear, by=year.offset)
-  )
+  # model_transformers <- list(
+  #   purrr::partial(OffsetYear, by=year.offset)
+  # )
 
-  model_transformers <- lift_dl(compose)(model_transformers)
+  # model_transformers <- purrr::lift_dl(purrr::compose)(model_transformers)
 
-  model_transformers(obj)
+  # model_transformers(obj)
+  OffsetYear(obj, by=year.offset)
 }
 
 TransformCleanedTarget <- function(tar, year.offset=0) {
-  SingleTblTransforms <- map(tar$model, TransformCleanedModel, year.offset)
+  SingleTblTransforms <- purrr::map(tar$model, TransformCleanedModel, year.offset)
 
   MaybeJoined <- switch(length(SingleTblTransforms),
                         SingleTblTransforms,
@@ -271,7 +300,8 @@ TransformCleanedTarget <- function(tar, year.offset=0) {
 }
 
 TransformAllTargets <- function(tars, year.offset=0) 
-  map(tars, TransformCleanedTarget, year.offset)
+  purrr::map(tars, TransformCleanedTarget, year.offset)
+
 
 #########################################################
 ## Data: Filter
@@ -282,171 +312,149 @@ FilterOn <- function(observed) setdiff(names(observed), 'value')
 # string -> quosure
 Sym <- rlang::sym
 
-GenInPred <- function(vec, var_name) quo(!!Sym(var_name) %in% vec)
+GenInPred <- function(vec, var_name) rlang::quo(!!Sym(var_name) %in% vec)
 
-GenTblPred <- function(tbl, var_name) GenInPred(pull(tbl, var_name), var_name)
+GenTblPred <- function(tbl, var_name)
+  GenInPred(dplyr::pull(tbl, var_name), var_name)
 
-GenTblPreds <- function(tbl, var_names) map(var_names, ~GenTblPred(tbl, .))
+GenTblPreds <- function(tbl, var_names)
+  purrr::map(var_names, ~GenTblPred(tbl, .))
 
 FilterModel <- function(model, observed)
-  filter(model, !!! GenTblPreds(observed, FilterOn(observed)))
+  dplyr::filter(model, !!! GenTblPreds(observed, FilterOn(observed)))
 
 FilterTarget <- function(tar)
-  modify_at(tar, "model", ~FilterModel(., tar$observed))
+  purrr::modify_at(tar, "model", ~FilterModel(., tar$observed))
 
-FilterTargets <- partial(map, ...=, FilterTarget)
+FilterTargets <- purrr::partial(purrr::map, ...=, FilterTarget)
 
 #########################################################
 ## Data: Join
 #########################################################
 
+# mod, obs -> tbl[model, observed]
+# Joins model data to observed data using the grouping vars
 JoinModelObserved <- function(mod, obs)
-  inner_join(mod, obs, IDGroupingVars(mod, obs), suffix=c(".mod", ".obs")) %>%
-  mutate(model     = value.mod,
-         observed  = value.obs,
-         value.mod = NULL,
-         value.obs = NULL)
+  dplyr::inner_join(mod,
+                    obs,
+                    IDGroupingVars(mod, obs),
+                    suffix=c(".mod", ".obs")) %>%
+  dplyr::mutate(model     = value.mod,
+                observed  = value.obs,
+                value.mod = NULL,
+                value.obs = NULL)
 
-CheckJoin <- function(obs, joined) NRows(joined) == NRows(obs)
+# obs [tbl] and [joined] -> bool
+# Check to make sure that every observed value was joined to
+# a model value
+CheckJoin <- function(obs, joined) 
+  all.equal(NRows(joined), NRows(obs))
 
+# tar -> list[type=string, data[ tbl[model,observed] ]]
+# Take a target which is ready for its join, do the join, reorganize
+# the target
 JoinTarget <- function(tar)
-  list(type=tar$type, 
+  list(type=tar$type,
        data=JoinModelObserved(tar$model, tar$observed))
 
-JoinAllTargets <- partial(map, ...=, JoinTarget)
+# list of trargets -> list of joined targets
+JoinAllTargets <- purrr::partial(purrr::map, ...=, JoinTarget)
 
 #########################################################
 ## Distribution generator
 #########################################################
 
-DistGenOnSize <- function(size) partial(dbinom, size=size, log=TRUE)
+# Partialize a binomial distribution on a population of size 'size'
+# and configure it to output values as represented by their natural
+# logarithm.
+DistGenOnSize <- function(size) purrr::partial(stats::dbinom, size=size, log=TRUE)
 
-Likelihood <- function(size) function(m,o) DistGenOnSize(size)(x=o, prob=m)
+# Currying function
+Likelihood <- function(size) {
+  assert_that(length(size) == 1)
+  assert_that(is.integer(size))
+  assert_that(size > 1)
+  
+  function(m,o) { 
+    assert_that(all(is.double(m)))
 
-Likelihoods <- function(model, obs, size) map2_dbl(model, obs, Likelihood(size))
+    DistGenOnSize(size)(x=o, prob=m)
+  }
+}
 
-CalculateLikelihoods <- function(tbl, size) 
-  mutate(tbl, likelihood=Likelihoods(model, round(size*observed), size))
+# Currying function
+Likelihoods <- function(model, obs, size) purrr::map2_dbl(model, obs, Likelihood(size))
 
-LikelihoodOnTarget <- function(tar, size=36500)
-  list(type=tar$type, 
+#
+CalculateLikelihoods <- function(tbl_data, size)
+  dplyr::mutate(tbl_data,
+                likelihood=Likelihoods(model,
+                                       round(size*observed),
+                                       size))
+
+LikelihoodOnTarget <- function(tar, size=as.integer(36500))
+  list(type=tar$type,
        likelihoods=CalculateLikelihoods(tar$data, size))
 
-LikelihoodOnTargets <- partial(map, ...=, LikelihoodOnTarget)
+LikelihoodOnTargets <- purrr::partial(purrr::map, ...=, LikelihoodOnTarget)
 
 #########################################################
 ## Summarize each target
 #########################################################
 
-SumTarget <- function(tar) 
-  modify_at(tar, "likelihoods", ~summarize(., log.sum = sum(likelihood)))
+SumTarget <- function(tar)
+  purrr::modify_at(tar, "likelihoods", ~dplyr::summarize(., log.sum = sum(likelihood)))
 
-SumTargets <- 
-  compose(sum,
-          partial(map_dbl, ...=, ~sum(pull(.$likelihoods, log.sum))),
-          partial(map, ...=, SumTarget))
+SumTargets <-
+  purrr::compose(sum,
+                 purrr::partial(purrr::map_dbl, ...=, ~sum(dplyr::pull(.$likelihoods, log.sum))),
+                 purrr::partial(purrr::map, ...=, SumTarget))
 
-TryIt <- function() {
+#' @export
+CalibrateTargets <- function(targets) {
 
   start_year <- 1990
-  pop_size   <- 36500
+  pop_size   <- as.integer(36500)
 
   if (!ValidateTargets(targets))
     stop("TryIt: One or more targets failed to validate")
 
   lib <- LibraryForTargets(targets)
 
-  Transformer <- partial(TransformAllTargets, year.offset=start_year)
-  Injector <- partial(InjectAllTargets, lib=lib)
+  Transformer <- purrr::partial(TransformAllTargets, year.offset=start_year)
+  Injector <- purrr::partial(InjectAllTargets, lib=lib)
 
-  injected    <- try(Injector(targets))
-  cleaned     <- try(CleanInjectedTargets(injected))
-  transformed <- try(Transformer(cleaned))
-  filtered    <- try(FilterTargets(transformed))
-  joined      <- try(JoinAllTargets(filtered))
-  calculated  <- try(LikelihoodOnTargets(joined))
-  summed      <- try(SumTargets(calculated))
+  pipeline <- purrr::compose(SumTargets,
+                             purrr::partial(LikelihoodOnTargets, size=pop_size),
+                             JoinAllTargets,
+                             FilterTargets,
+                             Transformer,
+                             CleanInjectedTargets,
+                             Injector)
 
-  dbg <- list(injected=injected, 
-              cleaned=cleaned,
-              transformed=transformed, 
-              filtered=filtered,
-              joined=joined,
-              calculated=calculated,
-              summed=summed)
-
-  pipeline <- compose(SumTargets,
-                      partial(LikelihoodOnTargets, size=pop_size),
-                      JoinAllTargets,
-                      FilterTargets,
-                      Transformer,
-                      CleanInjectedTargets,
-                      Injector)
-
-  list(pipeline = pipeline(targets),
-			 stepped  = dbg)
+  pipeline(targets)
 }
-
-
-#########################################################
-## Example data
-#########################################################
-
-valid_observations <- tibble(
-  years=seq(2002,2008),
-  values=10*seq(1002,1008) # Made-up values
-)
-
-# Example of a target with two time-series: 'tbLatent' is divided by
-# 'populationSize' for each year in 'tbLatent' that is also a year
-# in 'populationSize'
-valid_target_1    <- list(type="TS",
-													model=c("tbLatent", "populationSize"),
-													observed=valid_observations)
-
-# Example of a target with one time-series
-valid_target_2    <- list(type="TS",
-													model=c("tbSusceptible"),
-													observed=valid_observations)
-
-valid_targets     <- list(valid_target_1, valid_target_2)
-
-# It's conceivable that two identical, or very-similar targets could be
-# included in the list of targets, so this is there to illustrate that
-# capability.
-valid_targets_dup <- list(valid_target_1, valid_target_1, valid_target_2)
-
-# Invalid because a 'PTS' (PyramidTimeSeries) can't be used with
-# 'valid_observations', which is a TimeSeries data
-invalid_target_1 <- list(type="PTS",
-												 model=c("mydata2"),
-												 observed=valid_observations)
-
-# Invalid because of the '.csv': there shouldn't be file extensions
-invalid_target_2 <- list(type="TS",
-												 model=c("mydata1", "mydata2.csv"),
-												 observed=valid_observations)
 
 #########################################################
 ## Real data: preprocessing functions
 #########################################################
 
 ReformatRawCalibData <- function(d) {
-  vars <- setdiff(names(d), 'value')
+  vars <- setdiff(names(d), 'year')
 
-	# Reformat each target into a tibble with a 'year' variable
-	# and a 'value' variable
-  tibbles <- map_at(d, vars, ~tibble(year=d$year, value=.))
+  # Reformat each target into a tibble with a 'year' variable
+  # and a 'value' variable
+  tibbles <- purrr::map_at(d, vars, ~tibble::tibble(year=d$year, value=.))
 
-	# For each target, remove entries that are NA-valued
-  map(tibbles[vars], ~filter(., !is.na(value)))
+  # For each target, remove entries that are NA-valued
+  purrr::map(tibbles[vars], ~dplyr::filter(., !is.na(value)))
 }
 
 #########################################################
 ## Real data
 #########################################################
 
-calibrationData_raw <- tibble(
+calibrationData_raw <- tibble::tibble(
   year = 2002:2008,
   populationChildren = c(10427, 10531, 10637, 10743, 10850, 10959, 11068),
   populationAdults =   c(25903, 26162, 26424, 26688, 26955, 27224, 27497),
@@ -456,7 +464,7 @@ calibrationData_raw <- tibble(
   prevalenceExperiencedAdults = 100*c(0.097, NA, NA, NA, NA, NA, NA),
   prevalenceHIV = c(0.052, NA, NA, NA, NA, NA, NA),
   prevalenceInfectiousNaiveAdults = 100*c(0.0051, NA, NA, NA, NA, NA, NA),
-  prevalenceInfectiousExperiencedAdults = 100*c(0.0299, NA, NA, NA, NA, NA, NA),
+  prevalenceInfectiousExperiencedAdults = 100*c(0.0299, NA, NA, NA, NA, NA, NA)
 )
 
 calibrationData <- ReformatRawCalibData(calibrationData_raw)
