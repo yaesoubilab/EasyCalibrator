@@ -475,5 +475,5 @@ tar_prevalence_HIV <- list(type='TS',
 
 targets <- list(HIVPrevalence=tar_prevalence_HIV)
 
-fakePopSize <- 36500
+#fakePopSize <- 36500
 
