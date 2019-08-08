@@ -411,10 +411,10 @@ SumTargets <-
                  purrr::partial(purrr::map, ...=, SumTarget))
 
 #' @export
-CalibrateTargets <- function(targets) {
+CalibrateTargets <- function(targets, popSize) {
 
   start_year <- 1990
-  pop_size   <- as.integer(36500)
+  pop_size   <- as.integer(popSize)
 
   if (!ValidateTargets(targets))
     stop("TryIt: One or more targets failed to validate")
