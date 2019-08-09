@@ -1,7 +1,7 @@
 Package: EasyCalibrator
 Type: Package
 Title: Calibrate TB/HIV Model
-Version: 0.2.0
+Version: 0.3.0
 Author: Marcus Russi
 Maintainer: The package maintainer <yourself@somewhere.net>
 Description: More about what it does (maybe more than one line)
