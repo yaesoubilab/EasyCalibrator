@@ -25,4 +25,4 @@ append(final_sum, val)
 print(final_sum)
 }
 
-norm(c(1, 123), c(2, 234), c(5, 567))
+norm(c(1, 123, 234, 134, 345))
