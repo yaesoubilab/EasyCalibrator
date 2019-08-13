@@ -5,7 +5,7 @@ max <- max(sorted)
 count <<- NULL
 a <<- vector()
 for(i in sorted){
-if (i - max > log(10 ^ (-15) - log(length(vec)))){
+if (i - max > log(10 ^ (-15)) - log(length(vec))){
 append(a, i)
 }
 else{
@@ -22,7 +22,9 @@ val <- j/sum_final
 append(final_sum, val)
 }
 
-print(final_sum)
+for(k in final_sum){
+print(k)
+}
 }
 
 norm(c(1, 123, 234, 134, 345))
