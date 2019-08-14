@@ -1,27 +1,34 @@
 # thresholdNorm is a function that normalizes values in a numeric vector 
+requireNamespace("assertthat")
+#' @importFrom assertthat assert_that
 
-# FIRST PART: sorts, sums up, and finds the max of the given vector the for
-# loop runs a check to compare the each value in a vector to the smallest
-# possible value in a given vector then keeps anything greater than 0
-# and sets anything less to 0
-
-#SECOND PART: sorts, sums, and finds n
+is.wholenumber <- function(x, tol = .Machine$double.eps^0.5)  abs(x - round(x)) < tol
 
 #thresholdNorm: vec, threshold -> vec
 #	where vec is vector containing values 
 #	where d is what the base will be raised to (ex. 10^ d)
 
-thresholdNorm <- function(input, base=10, threshold){
+#' @export
+ThresholdNorm <- function(input, threshold, base = 10){
   
+  assert_that(length(input) > 1, msg="Input was of length 0 or 1")
+  assert_that(is.numeric(input), msg="Input was not a numeric vector")
+  assert_that(all(input < 0),    msg="Input had a nonnegative element")
+  assert_that(length(base) == 1,    msg="'base' must be one number")
+  assert_that(is.wholenumber(base), msg="'base must be whole number")
+  assert_that(base > 1,             msg="'base' must be >1")
+  assert_that(length(threshold) == 1,    msg="'threshold' must be one number")
+  assert_that(is.wholenumber(threshold), msg="'threshold' must be whole number")
+  assert_that(threshold < 0,             msg="'threshold' must be <0")
+
   #FIRST PART 
-  vec_sorted <- sort(input, decreasing = TRUE, index.return = TRUE)
+  vec_sorted <- sort(input, index.return = TRUE)
   vec_count <- NULL
   vec_n <- length(input)
   vec_max <- vec_sorted$x[vec_n]
 
   sort_order <- vec_sorted$x
   init_order <- vec_sorted$ix 
- 
   a_i <- ifelse((sort_order - vec_max) > (log(10^threshold) - log(vec_n)), 10^(sort_order - vec_max), 0)
   a_i_sum <- sum(a_i)
 
@@ -30,4 +37,3 @@ thresholdNorm <- function(input, base=10, threshold){
   norm_a_i[init_order]
 }
 
-#thresholdNorm(c(-0.001, -0.000000000001, -0.0000000000000001), base = 10, 15)
