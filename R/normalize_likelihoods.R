@@ -1,55 +1,33 @@
-# thresholdNorm is a function that normalizes values in a numeric vector such
-# that every value in the vector can be better compared
+# thresholdNorm is a function that normalizes values in a numeric vector 
 
 # FIRST PART: sorts, sums up, and finds the max of the given vector the for
 # loop runs a check to compare the each value in a vector to the smallest
-# possible value in a given vector
+# possible value in a given vector then keeps anything greater than 0
+# and sets anything less to 0
 
-#SECOND PART: sorts, sums, and finds
-# max of resulting vector from FIRST PART normalizes the vector by dividing
-# each value in vector by sum of vector
+#SECOND PART: sorts, sums, and finds n
 
-#thresholdNorm: vec, d
-#	where vec is vector containing the different likelihoods where d is the
-#	value of the exponent 
+#thresholdNorm: vec, threshold -> vec
+#	where vec is vector containing values 
+#	where d is what the base will be raised to (ex. 10^ d)
 
-thresholdNorm <- function(vec, d){
+thresholdNorm <- function(input, base=10, threshold){
   
   #FIRST PART 
-  vec_sorted <- sort(vec, decreasing = TRUE)
-  vec_sum <- sum(vec_sorted)
-  vec_max <- max(vec_sorted)
+  vec_sorted <- sort(input, decreasing = TRUE, index.return = TRUE)
   vec_count <- NULL
-  a_i <- c(double())
-  vec_n <- length(vec)
+  vec_n <- length(input)
+  vec_max <- vec_sorted$x[vec_n]
+
+  sort_order <- vec_sorted$x
+  init_order <- vec_sorted$ix 
+ 
+  a_i <- ifelse((sort_order - vec_max) > (log(10^threshold) - log(vec_n)), 10^(sort_order - vec_max), 0)
+  a_i_sum <- sum(a_i)
+
+  norm_a_i <- a_i / a_i_sum
   
-  #for loop that goes through sorted vector and compares 
-  # the value minus the max to the smallest possible value in a given vector 
-  # if smaller, value is removed & vec_count + 1
-  # 	to keep track of removed values
-  # if greater, add value to new vector called a_i
-  for(i in vec_sorted){
-      if (i - vec_max > log(10 ^ -(d)) - log(vec_n)){
-      a_i <- c(a_i, i-vec_max)
-    }
-    else{
-      vec_count <- vec_count + 1
-    }
-  }
-  
-  #SECOND PART
-  a_sort <- sort(a_i, decreasing = TRUE)
-  sum_final <- sum(a_sort)
-  final_sum <- c(double())
-  
-  #for loop that goes through a_sort and divides each value by the sum 
-  for(j in a_sort){
-    
-    divide_sum <- j/sum_final
-    final_sum <- c(final_sum, divide_sum)
-  }
-  
-  return(final_sum)
+  norm_a_i[init_order]
 }
 
-#thresholdNorm(c(-0.001, -0.000000000001, -0.0000000000000001), 15)
+#thresholdNorm(c(-0.001, -0.000000000001, -0.0000000000000001), base = 10, 15)
