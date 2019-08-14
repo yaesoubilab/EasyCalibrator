@@ -13,7 +13,7 @@ ThresholdNorm <- function(input, threshold, base = 10){
   
   assert_that(length(input) > 1, msg="Input was of length 0 or 1")
   assert_that(is.numeric(input), msg="Input was not a numeric vector")
-  assert_that(all(input < 0),    msg="Input had a nonnegative element")
+  #assert_that(all(input < 0),    msg="Input had a nonnegative element")
   assert_that(length(base) == 1,    msg="'base' must be one number")
   assert_that(is.wholenumber(base), msg="'base must be whole number")
   assert_that(base > 1,             msg="'base' must be >1")
@@ -37,3 +37,4 @@ ThresholdNorm <- function(input, threshold, base = 10){
   norm_a_i[init_order]
 }
 
+#ThresholdNorm(-10:10, -1, 10)
