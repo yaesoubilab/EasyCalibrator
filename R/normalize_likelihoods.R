@@ -21,7 +21,6 @@ ThresholdNorm <- function(input, threshold, base = 10){
   assert_that(is.wholenumber(threshold), msg="'threshold' must be whole number")
   assert_that(threshold < 0,             msg="'threshold' must be <0")
 
-  #FIRST PART 
   vec_sorted <- sort(input, index.return = TRUE)
   vec_count <- NULL
   vec_n <- length(input)
