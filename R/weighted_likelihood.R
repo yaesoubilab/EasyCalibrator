@@ -1,6 +1,4 @@
 requireNamespace("assertthat")
-requireNamespace("magrittr")
-requireNamespace("purrr")
 
 #' @importFrom assertthat assert_that
 
@@ -53,19 +51,13 @@ A_i <- function(input, threshold, base=exp(1)) {
 
   A_is <- ifelse(too_small, 0, base^(sorted - max_val))
 
-  list(result=A_is, permutation=permutation)
+  A_is[order(permutation)]
 }
 
 Normalize <- function(vec) vec/sum(vec)
 
 #' @export
 ThresholdNorm <- function(input, threshold, base=exp(1)) {
-
-  A           <- A_i(input, threshold, base)
-  A_is        <- A$result
-  permutation <- A$permutation
-
-  normalized  <- Normalize(A_is)
-
-  normalized[permutation]
+  A_is <- A_i(input, threshold, base)
+  Normalize(A_is)
 }
