@@ -59,7 +59,9 @@ JoinAndDivide <- function(tbl1, tbl2) {
     stop("Join failed!")
   }
 
-  divide <- purrr::partial(dplyr::mutate, value = value.x/value.y)
+  divide <- purrr::partial(dplyr::mutate, 
+                           value = ifelse(value.y == 0, 0, value.x/value.y))
+
   consolidate <- purrr::partial(dplyr::select, ...=, -value.x, -value.y)
 
   purrr::compose(consolidate, divide)(joined)

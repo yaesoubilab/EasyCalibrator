@@ -44,8 +44,11 @@ CalculateLikelihoods <- function(tbl_data, size)
                                        size))
 
 LikelihoodOnTarget <- function(tar, size=as.integer(36500))
-  list(type=tar$type,
-       likelihoods=CalculateLikelihoods(tar$data, size))
+    list(type=tar$type,
+         likelihoods=CalculateLikelihoods(tar$data, size)) 
+# LikelihoodOnTarget <- function(tar, size=as.integer(36500)) {
+#   purrr::modify_at(tar, "likelihoods", ~CalculateLikelihoods(tar$data, tar$size))
+# }
 
 LikelihoodOnTargets <- purrr::partial(purrr::map, ...=, LikelihoodOnTarget)
 

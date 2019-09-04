@@ -15,8 +15,9 @@ requireNamespace("tibble")
 ## Summarize each target
 #########################################################
 
-SumTarget <- function(tar)
+SumTarget <- function(tar) {
   purrr::modify_at(tar, "likelihoods", ~dplyr::summarize(., log.sum = sum(likelihood)))
+}
 
 SumTargets <-
   purrr::compose(sum,
