@@ -19,7 +19,7 @@ SumTarget <- function(tar) {
   purrr::modify_at(tar, "likelihoods", ~dplyr::summarize(., log.sum = sum(likelihood)))
 }
 
-SumTargets <-
+SumTargets <- 
   purrr::compose(sum,
                  purrr::partial(purrr::map_dbl, ...=, ~sum(dplyr::pull(.$likelihoods, log.sum))),
                  purrr::partial(purrr::map, ...=, SumTarget))

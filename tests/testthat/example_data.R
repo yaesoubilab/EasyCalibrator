@@ -12,12 +12,14 @@ valid_observations <- tibble::tibble(
 # in 'populationSize'
 valid_target_1    <- list(type="TS",
                           model=c("tbLatent", "populationSize"),
-                          observed=valid_observations)
+                          observed=valid_observations,
+                          size=100)
 
 # Example of a target with one time-series
 valid_target_2    <- list(type="TS",
                           model=c("tbSusceptible"),
-                          observed=valid_observations)
+                          observed=valid_observations,
+                          size=100)
 
 valid_targets     <- list(valid_target_1, valid_target_2)
 
@@ -30,7 +32,8 @@ valid_targets_dup <- list(valid_target_1, valid_target_1, valid_target_2)
 # 'valid_observations', which is a TimeSeries data
 invalid_target_1 <- list(type="PTS",
                          model=c("mydata2"),
-                         observed=valid_observations)
+                         observed=valid_observations,
+                         size=100)
 
 # Invalid because of the '.csv': there shouldn't be file extensions
 invalid_target_2 <- list(type="TS",

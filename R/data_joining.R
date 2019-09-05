@@ -37,8 +37,7 @@ CheckJoin <- function(obs, joined)
 # Take a target which is ready for its join, do the join, reorganize
 # the target
 JoinTarget <- function(tar) {
-  print(purrr::modify_at(tar, "data", ~JoinModelObserved(tar$model, tar$observed)))
-  purrr::modify_at(tar, "data", ~JoinModelObserved(tar$model, tar$observed))
+  purrr::list_modify(tar, data=JoinModelObserved(tar$model, tar$observed))
 }
 
 # list of targets -> list of joined targets

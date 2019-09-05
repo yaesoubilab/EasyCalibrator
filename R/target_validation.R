@@ -24,7 +24,7 @@ requireNamespace("tibble")
 #
 # IsTarget_impl: tar -> logical_vec
 IsTarget_impl <- function(tar) {
-  target_keys <- c("type", "model", "observed")
+  target_keys <- c("type", "model", "observed", "size")
   possible_types <- c('TS')
 
   filenames <- tar$model
