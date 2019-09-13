@@ -21,7 +21,12 @@ valid_target_2    <- list(type="TS",
                           observed=valid_observations,
                           size=100)
 
-valid_targets     <- list(valid_target_1, valid_target_2)
+valid_target_3    <- list(type="TS",
+                          model=c("tbLatent", "populationSize"),
+                          observed=valid_observations,
+                          size="model")
+
+valid_targets     <- list(valid_target_1, valid_target_2, valid_target_3)
 
 # It's conceivable that two identical, or very-similar targets could be
 # included in the list of targets, so this is there to illustrate that

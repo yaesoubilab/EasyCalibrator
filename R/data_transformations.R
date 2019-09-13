@@ -92,6 +92,12 @@ TransformCleanedTarget <- function(tar, year.offset=0) {
                                       SingleTblTransforms[[2]]))
 
   tar$model <- MaybeJoined
+
+  # Because 'tar$model' is being overwritten, we need to preserve it in the
+  # case that its data is needed for the 'size' of the target group
+  tar$size <- ifelse(identical(tar$size, 'model'),
+                     SingleTblTransforms[[length(SingleTblTransforms)]],
+                     tar$size)
   tar
 }
 

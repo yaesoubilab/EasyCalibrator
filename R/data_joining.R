@@ -36,9 +36,8 @@ CheckJoin <- function(obs, joined)
 # tar -> list[type=string, data[ tbl[model,observed] ]]
 # Take a target which is ready for its join, do the join, reorganize
 # the target
-JoinTarget <- function(tar) {
+JoinTarget <- function(tar)
   purrr::list_modify(tar, data=JoinModelObserved(tar$model, tar$observed))
-}
 
 # list of targets -> list of joined targets
 JoinAllTargets <- purrr::partial(purrr::map, ...=, JoinTarget)
