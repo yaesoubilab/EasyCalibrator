@@ -25,10 +25,9 @@ SumTargets <-
                  purrr::partial(purrr::map, ...=, SumTarget))
 
 #' @export
-CalibrateTargets <- function(targets, popSize) {
+CalibrateTargets <- function(targets) {
 
   start_year <- 1990
-  pop_size   <- as.integer(popSize)
 
   if (!ValidateTargets(targets))
     stop("TryIt: One or more targets failed to validate")
@@ -39,7 +38,7 @@ CalibrateTargets <- function(targets, popSize) {
   Injector <- purrr::partial(InjectAllTargets, lib=lib)
 
   pipeline <- purrr::compose(SumTargets,
-                             purrr::partial(LikelihoodOnTargets, size=pop_size),
+                             LikelihoodOnTargets,
                              JoinAllTargets,
                              FilterTargets,
                              Transformer,
