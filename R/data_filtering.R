@@ -43,8 +43,9 @@ FilterModel <- function(model, observed)
 FilterTarget <- function(tar) {
   tar <- purrr::modify_at(tar, "model", ~FilterModel(., tar$observed))
 
-  if (tibble::is_tibble(tar$size))
+  if (tibble::is_tibble(tar$size)) {
     tar$size <- FilterModel(tar$size, tar$observed)$value
+  }
 
   tar
 }

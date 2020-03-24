@@ -23,25 +23,29 @@ DistGenOnSize <- function(size) purrr::partial(stats::dbinom, size=size, log=TRU
 # Currying function
 Likelihood <- function(size) {
   assert_that(length(size) == 1)
-  assert_that(is.integer(size))
   assert_that(size > 1)
   
   function(m,o) { 
     assert_that(all(is.double(m)))
 
-    DistGenOnSize(size)(x=o, prob=m)
+    DistGenOnSize(as.integer(size))(x=o, prob=m)
   }
 }
 
 # Currying function
-Likelihoods <- function(model, obs, size) purrr::map2_dbl(model, obs, Likelihood(size))
+Likelihoods <- function(model, obs, size) {
+  purrr::pmap_dbl(list(model, obs, size),
+                  function(m,o,s) Likelihood(s)(m,o))
+}
 
-#
 CalculateLikelihoods <- function(tbl_data, size)
-  dplyr::mutate(tbl_data,
-                likelihood=Likelihoods(model,
-                                       round(size*observed),
-                                       as.integer(size)))
+  dplyr::mutate(
+    tbl_data,
+    likelihood=
+      Likelihoods(model,
+                  ifelse(observed < 1, round(observed*size), observed),
+                  size)
+  )
 
 LikelihoodOnTarget <- function(tar)
   list(type=tar$type,
