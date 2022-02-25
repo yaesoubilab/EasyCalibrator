@@ -24,8 +24,13 @@ SumTargets <-
                  purrr::partial(purrr::map_dbl, ...=, ~sum(dplyr::pull(.$likelihoods, log.sum))),
                  purrr::partial(purrr::map, ...=, SumTarget))
 
+SumTargetsVerbose <- function(targets) {
+  sum.for.each.target <- purrr::map(targets, SumTarget)
+  map(sum.for.each.target, ~dplyr::pull(.$likelihoods, log.sum))
+}
+
 #' @export
-CalibrateTargets <- function(targets) {
+CalibrateTargets <- function(targets, verbose=FALSE) {
 
   start_year <- 1990
 
@@ -44,6 +49,16 @@ CalibrateTargets <- function(targets) {
                              Transformer,
                              CleanInjectedTargets,
                              Injector)
+
+  if (identical(verbose, TRUE)) {
+    pipeline <- purrr::compose(SumTargetsVerbose,
+                               LikelihoodOnTargets,
+                               JoinAllTargets,
+                               FilterTargets,
+                               Transformer,
+                               CleanInjectedTargets,
+                               Injector)
+  }
 
   pipeline(targets)
 }
